@@ -12,7 +12,7 @@ st.set_page_config(page_title="YOLOv11 Object Detection", layout="wide")
 # Load the trained YOLO model
 @st.cache_resource
 def load_model():
-    return YOLO("best_2025-08-14_19-27-25.pt")  # Replace with path to your trained model weights
+    return YOLO("best.pt")  # Replace with path to your trained model weights
 
 model = load_model()
 
