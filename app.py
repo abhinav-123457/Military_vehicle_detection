@@ -33,7 +33,7 @@ st.markdown("""
         border: 1px solid #ddd;
         border-radius: 8px;
         padding: 20px;
-        background-color: white;
+        background-color: #0e1117;
     }
     .sidebar .sidebar-content {
         background-color: #ffffff;
