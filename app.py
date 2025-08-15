@@ -27,11 +27,8 @@ def process_image(image):
     results = model(img)
     return results[0].plot()
 
-# --- Video Processing ---
-def process_video(video_path):
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    output_path = temp_file.name
-
+# --- Video Processing with Batch Inference ---
+def process_video(video_path, batch_size=8):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         st.error("Failed to open video.")
@@ -39,27 +36,38 @@ def process_video(video_path):
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    fps = max(1, int(cap.get(cv2.CAP_PROP_FPS)))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    output_path = temp_file.name
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     progress = st.progress(0)
     frame_count = 0
 
+    frames_buffer = []
+
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        results = model(frame)
-        annotated_frame = results[0].plot()
-        out.write(annotated_frame)
+        frames_buffer.append(frame)
 
-        frame_count += 1
-        if frame_count % 50 == 0:
-            progress.progress(frame_count / total_frames)
+        # Process when batch is full or end of video
+        if len(frames_buffer) == batch_size or frame_count + len(frames_buffer) == total_frames:
+            results = model(frames_buffer, verbose=False)  # YOLO batch inference
+            for res in results:
+                annotated_frame = res.plot()
+                out.write(annotated_frame)
+
+            frame_count += len(frames_buffer)
+            frames_buffer = []
+
+            if frame_count % 50 == 0:
+                progress.progress(frame_count / total_frames)
 
     cap.release()
     out.release()
@@ -88,8 +96,10 @@ with tabs[1]:
     if uploaded_video:
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
         tfile.write(uploaded_video.read())
+
         with st.spinner("Processing video..."):
-            output_video_bytes = process_video(tfile.name)
+            output_video_bytes = process_video(tfile.name, batch_size=8)  # Batch of 8
+
         os.remove(tfile.name)
 
         if output_video_bytes:
@@ -98,7 +108,7 @@ with tabs[1]:
                 st.video(uploaded_video)
                 st.caption("Uploaded Video")
             with col2:
-                st.video(output_video_bytes)
+                st.video(output_video_bytes, format="video/mp4")
                 st.caption("Detection Results")
 
 # --- Sidebar ---
