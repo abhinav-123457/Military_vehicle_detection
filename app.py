@@ -58,7 +58,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Set page configuration
-st.set_page_config(page_title="YOLOv11 Object Detection", layout="wide")
+st.set_page_config(page_title="YOLOv11 Mikitary Object and Vehicle Detection", layout="wide")
 
 # Load the trained YOLO model
 @st.cache_resource
@@ -121,7 +121,7 @@ if 'webcam_active' not in st.session_state:
     st.session_state.webcam_active = False
 
 # Streamlit UI
-st.title("YOLOv11 Object Detection App")
+st.title("YOLOv11 Military Object and Vehicle Detection App")
 st.markdown("Detect military vehicles in images or real-time webcam feed using a trained YOLOv11 model.")
 
 # Sidebar settings
