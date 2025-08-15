@@ -7,56 +7,71 @@ import os
 import tempfile
 
 # Set page configuration
-st.set_page_config(page_title="YOLOv11 Military Object and vehicle Detection", layout="wide")
+st.set_page_config(page_title="YOLOv11 Object Detection", layout="wide")
 
 # Load the trained YOLO model
 @st.cache_resource
 def load_model():
-    return YOLO("best.pt")  # Replace with path to your trained model weights
+    model_path = os.path.join(os.path.dirname(__file__), "best.pt")
+    if not os.path.exists(model_path):
+        st.error(f"Model file not found at {model_path}")
+        raise FileNotFoundError(f"Model file not found at {model_path}")
+    return YOLO(model_path)
 
 model = load_model()
 
 # Function to process image
 def process_image(image):
-    # Convert PIL image to numpy array
     img = np.array(image)
-    # Perform inference
     results = model(img)
-    # Get annotated image
     annotated_img = results[0].plot()
     return annotated_img
 
 # Function to process video
 def process_video(video_path):
-    # Create temporary file for output
+    st.write("Starting video processing...")
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     output_path = temp_file.name
     
-    # Open video
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        st.error("Failed to open input video.")
+        return None
+    
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    st.write(f"Video info: {width}x{height}, {fps} FPS, {total_frames} frames")
     
-    # Define video writer
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    if not out.isOpened():
+        st.error("Failed to initialize video writer.")
+        cap.release()
+        return None
     
+    frame_count = 0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        # Perform inference
         results = model(frame)
+        if results[0].boxes:
+            st.write(f"Detections found in frame {frame_count+1}")
         annotated_frame = results[0].plot()
         out.write(annotated_frame)
+        frame_count += 1
+        if frame_count % 100 == 0:
+            st.write(f"Processed {frame_count}/{total_frames} frames")
     
     cap.release()
     out.release()
+    st.write(f"Video processing complete. Output saved to {output_path}")
     return output_path
 
 # Streamlit UI
-st.title("YOLOv11 military Object and Vehicle Detection App")
+st.title("YOLOv11 Object Detection App")
 st.write("Upload an image or video to perform object detection using your trained YOLOv11 model.")
 
 # File uploader
@@ -66,7 +81,6 @@ if uploaded_file is not None:
     file_type = uploaded_file.type
     
     if file_type in ["image/jpeg", "image/png"]:
-        # Process image
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
         
@@ -75,25 +89,24 @@ if uploaded_file is not None:
             st.image(annotated_img, caption="Detection Results", use_column_width=True)
     
     elif file_type == "video/mp4":
-        # Save uploaded video to temporary file
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
         tfile.write(uploaded_file.read())
         
         with st.spinner("Processing video..."):
             output_video_path = process_video(tfile.name)
             
-            # Display input and output videos
-            col1, col2 = st.columns(2)
-            with col1:
-                st.video(tfile.name)
-                st.caption("Uploaded Video")
-            with col2:
-                st.video(output_video_path)
-                st.caption("Detection Results")
-            
-            # Clean up temporary files
-            os.remove(tfile.name)
-            os.remove(output_video_path)
+            if output_video_path:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.video(tfile.name)
+                    st.caption("Uploaded Video")
+                with col2:
+                    st.video(output_video_path)
+                    st.caption("Detection Results")
+                os.remove(tfile.name)
+                os.remove(output_video_path)
+            else:
+                st.error("Video processing failed. Check the logs for details.")
 else:
     st.info("Please upload an image or video file to proceed.")
 
