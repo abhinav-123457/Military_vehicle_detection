@@ -56,7 +56,7 @@ def process_video(video_path):
     return output_path
 
 # Streamlit UI
-st.title("YOLOv11 Object Detection App")
+st.title("YOLOv11 military Object and Vehicle Detection App")
 st.write("Upload an image or video to perform object detection using your trained YOLOv11 model.")
 
 # File uploader
