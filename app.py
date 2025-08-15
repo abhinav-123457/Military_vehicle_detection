@@ -7,7 +7,7 @@ import os
 import tempfile
 
 # Set page configuration
-st.set_page_config(page_title="YOLOv11 Object Detection", layout="wide")
+st.set_page_config(page_title="YOLOv11 Military Object and vehicle Detection", layout="wide")
 
 # Load the trained YOLO model
 @st.cache_resource
