@@ -24,6 +24,12 @@ st.markdown("""
     .stButton>button:hover {
         background-color: #45a049;
     }
+    .stButton>button[kind="secondary"] {
+        background-color: #ff4b4b;
+    }
+    .stButton>button[kind="secondary"]:hover {
+        background-color: #e04343;
+    }
     .stTabs [data-baseweb="tab"] {
         font-size: 16px;
         font-weight: bold;
@@ -110,6 +116,10 @@ class YOLOVideoProcessor(VideoProcessorBase):
             st.error(f"Webcam processing failed: {str(e)}")
             return frame  # Return original frame if processing fails
 
+# Initialize session state for webcam control
+if 'webcam_active' not in st.session_state:
+    st.session_state.webcam_active = False
+
 # Streamlit UI
 st.title("YOLOv11 Object Detection App")
 st.markdown("Detect military vehicles in images or real-time webcam feed using a trained YOLOv11 model.")
@@ -135,7 +145,7 @@ st.sidebar.header("📝 Instructions")
 st.sidebar.markdown("""
 1. Use the tabs to select 'Image Upload' or 'Real-Time Webcam'.
 2. For images, upload a JPG, JPEG, or PNG file (max 10MB).
-3. For webcam, click 'Start' and allow camera access.
+3. For webcam, click 'Start' to begin and 'Stop' to end detection.
 4. Adjust the confidence threshold in the settings.
 5. View detection results with bounding boxes and labels.
 """)
@@ -175,18 +185,33 @@ with tab1:
 
 with tab2:
     st.subheader("Real-Time Webcam Detection")
-    st.markdown("Click 'Start' to begin real-time detection. Ensure your webcam is enabled.")
-    try:
-        webrtc_ctx = webrtc_streamer(
-            key="yolo-webcam",
-            mode=WebRtcMode.SENDRECV,
-            video_processor_factory=lambda: YOLOVideoProcessor(conf_threshold),
-            media_stream_constraints={"video": True, "audio": False},
-            async_processing=True,
-        )
-        if webrtc_ctx.state.playing:
-            st.success("Webcam is active. Processing real-time detections...")
-        else:
-            st.info("Click 'Start' to enable webcam detection.")
-    except Exception as e:
-        st.error(f"Webcam streaming failed: {str(e)}")
+    st.markdown("Click 'Start' to begin real-time detection or 'Stop' to end it. Ensure your webcam is enabled.")
+    
+    # Webcam control buttons
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("Start Webcam", key="start_webcam"):
+            st.session_state.webcam_active = True
+    with col2:
+        if st.button("Stop Webcam", key="stop_webcam", type="secondary"):
+            st.session_state.webcam_active = False
+    
+    # Render webcam stream only if active
+    if st.session_state.webcam_active:
+        try:
+            webrtc_ctx = webrtc_streamer(
+                key="yolo-webcam",
+                mode=WebRtcMode.SENDRECV,
+                video_processor_factory=lambda: YOLOVideoProcessor(conf_threshold),
+                media_stream_constraints={"video": True, "audio": False},
+                async_processing=True,
+            )
+            if webrtc_ctx.state.playing:
+                st.success("Webcam is active. Processing real-time detections...")
+            else:
+                st.info("Webcam stream initialized. Waiting for camera access...")
+        except Exception as e:
+            st.error(f"Webcam streaming failed: {str(e)}")
+            st.session_state.webcam_active = False
+    else:
+        st.info("Click 'Start Webcam' to enable detection.")
